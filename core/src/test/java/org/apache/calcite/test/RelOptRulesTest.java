@@ -105,6 +105,7 @@ import org.apache.calcite.rel.rules.SemiJoinJoinTransposeRule;
 import org.apache.calcite.rel.rules.SemiJoinProjectTransposeRule;
 import org.apache.calcite.rel.rules.SemiJoinRemoveRule;
 import org.apache.calcite.rel.rules.SemiJoinRule;
+import org.apache.calcite.rel.rules.SortJoinCopyRule;
 import org.apache.calcite.rel.rules.SortJoinTransposeRule;
 import org.apache.calcite.rel.rules.SortProjectTransposeRule;
 import org.apache.calcite.rel.rules.SortRemoveConstantKeysRule;
@@ -2281,6 +2282,8 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester1, null,
         new HepPlanner(program), query);
   }
+
+
 
   @Test public void testConvertMultiJoinRuleOuterJoins() throws Exception {
     checkPlanning("select * from "
@@ -5184,7 +5187,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     sql(sql).with(program).check();
   }
 
-  /** Test case for
+ /** Test case for
   * <a href="https://issues.apache.org/jira/browse/CALCITE-2803">[CALCITE-2803]
   * Identify expanded IS NOT DISTINCT FROM expression when pushing project past join</a>.
   */
@@ -5192,6 +5195,82 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(ProjectJoinTransposeRule.INSTANCE,
         "select e.sal + b.comm from emp e inner join bonus b "
             + "on e.ename IS NOT DISTINCT FROM b.ename and e.deptno = 10");
+  }
+
+  @Test public void testSortJoinCopy1() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SortProjectTransposeRule.INSTANCE)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.emp join sales.dept on\n"
+        + "sales.emp.deptno = sales.dept.deptno order by sal";
+    final HepPlanner hepPlanner = new HepPlanner(program);
+    checkPlanning(tester, preProgram, hepPlanner, sql);
+  }
+
+  @Test public void testSortJoinCopy2() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SortProjectTransposeRule.INSTANCE)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.emp e join (\n"
+        + "  select * from sales.dept d) d on e.deptno = d.deptno\n"
+        + "order by sal limit 10";
+    checkPlanning(tester, preProgram, new HepPlanner(program), sql);
+  }
+
+  @Test public void testSortJoinCopy3() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SortProjectTransposeRule.INSTANCE)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.emp e join  sales.dept d on\n"
+        + " e.deptno = d.deptno order by e.sal,d.name";
+    checkPlanning(tester, preProgram, new HepPlanner(program), sql);
+  }
+
+  @Test public void testSortJoinCopy4() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SemiJoinRule.PROJECT)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.dept d where d.deptno in\n"
+        + " (select e.deptno from sales.emp e) order by d.deptno";
+    checkPlanning(tester, preProgram, new HepPlanner(program), sql);
+  }
+
+  @Test public void testSortJoinCopy5() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SemiJoinRule.PROJECT)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.dept d where d.deptno in\n"
+        + " (select e.deptno from sales.emp e) order by d.deptno limit 10 offset 2";
+    // Do not copy the limit and offset
+    checkPlanning(tester, preProgram, new HepPlanner(program), sql);
+  }
+
+  @Test public void testSortJoinCopy6() {
+    final HepProgram preProgram = new HepProgramBuilder()
+        .addRuleInstance(SemiJoinRule.PROJECT)
+        .build();
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(SortJoinCopyRule.INSTANCE)
+        .build();
+    final String sql = "select * from sales.dept d where d.deptno in"
+        + " (select e.deptno from sales.emp e) order by d.deptno offset 2";
+    // Do not copy the offset
+    checkPlanning(tester, preProgram, new HepPlanner(program), sql);
   }
 }
 
