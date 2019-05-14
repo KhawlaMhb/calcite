@@ -2283,8 +2283,6 @@ public class RelOptRulesTest extends RelOptTestBase {
         new HepPlanner(program), query);
   }
 
-
-
   @Test public void testConvertMultiJoinRuleOuterJoins() throws Exception {
     checkPlanning("select * from "
         + "    (select * from "
@@ -5187,7 +5185,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     sql(sql).with(program).check();
   }
 
- /** Test case for
+  /** Test case for
   * <a href="https://issues.apache.org/jira/browse/CALCITE-2803">[CALCITE-2803]
   * Identify expanded IS NOT DISTINCT FROM expression when pushing project past join</a>.
   */
@@ -5197,7 +5195,7 @@ public class RelOptRulesTest extends RelOptTestBase {
             + "on e.ename IS NOT DISTINCT FROM b.ename and e.deptno = 10");
   }
 
-  @Test public void testSortJoinCopy1() {
+  @Test public void testSortJoinCopyInnerJoinOrderBy() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SortProjectTransposeRule.INSTANCE)
         .build();
@@ -5210,7 +5208,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester, preProgram, hepPlanner, sql);
   }
 
-  @Test public void testSortJoinCopy2() {
+  @Test public void testSortJoinCopyInnerJoinOrderByLimit() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SortProjectTransposeRule.INSTANCE)
         .build();
@@ -5223,7 +5221,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester, preProgram, new HepPlanner(program), sql);
   }
 
-  @Test public void testSortJoinCopy3() {
+  @Test public void testSortJoinCopyInnerJoinOrderByTwoFields() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SortProjectTransposeRule.INSTANCE)
         .build();
@@ -5235,7 +5233,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester, preProgram, new HepPlanner(program), sql);
   }
 
-  @Test public void testSortJoinCopy4() {
+  @Test public void testSortJoinCopySemiJoinOrderBy() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SemiJoinRule.PROJECT)
         .build();
@@ -5247,7 +5245,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester, preProgram, new HepPlanner(program), sql);
   }
 
-  @Test public void testSortJoinCopy5() {
+  @Test public void testSortJoinCopySemiJoinOrderByLimitOffset() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SemiJoinRule.PROJECT)
         .build();
@@ -5260,7 +5258,7 @@ public class RelOptRulesTest extends RelOptTestBase {
     checkPlanning(tester, preProgram, new HepPlanner(program), sql);
   }
 
-  @Test public void testSortJoinCopy6() {
+  @Test public void testSortJoinCopySemiJoinOrderByOffset() {
     final HepProgram preProgram = new HepProgramBuilder()
         .addRuleInstance(SemiJoinRule.PROJECT)
         .build();

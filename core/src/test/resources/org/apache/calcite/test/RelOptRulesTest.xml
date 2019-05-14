@@ -8953,7 +8953,7 @@ LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy1">
+    <TestCase name="testSortJoinCopyInnerJoinOrderBy">
         <Resource name="sql">
             <![CDATA[select * from sales.emp join sales.dept on sales.emp.deptno = sales.dept.deptno order by sal]]>
         </Resource>
@@ -8977,7 +8977,7 @@ LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy2">
+    <TestCase name="testSortJoinCopyInnerJoinOrderByLimit">
         <Resource name="sql">
             <![CDATA[select * from sales.emp e join (
   select * from sales.dept d) d on e.deptno = d.deptno
@@ -9005,7 +9005,7 @@ LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy3">
+    <TestCase name="testSortJoinCopyInnerJoinOrderByTwoFields">
         <Resource name="sql">
             <![CDATA[select * from sales.emp e join  sales.dept d on e.deptno = d.deptno order by e.sal,d.name]]>
         </Resource>
@@ -9030,7 +9030,7 @@ LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy4">
+    <TestCase name="testSortJoinCopySemiJoinOrderBy">
         <Resource name="sql">
             <![CDATA[select * from sales.dept d where d.deptno in (select e.deptno from sales.emp e) order by d.deptno]]>
         </Resource>
@@ -9054,7 +9054,7 @@ LogicalSort(sort0=[$0], dir0=[ASC])
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy5">
+    <TestCase name="testSortJoinCopySemiJoinOrderByLimitOffset">
         <Resource name="sql">
             <![CDATA[select * from sales.dept d where d.deptno in (select e.deptno from sales.emp e) order by d.deptno limit 10 offset 2]]>
         </Resource>
@@ -9078,7 +9078,7 @@ LogicalSort(sort0=[$0], dir0=[ASC], offset=[2], fetch=[10])
 ]]>
         </Resource>
     </TestCase>
-    <TestCase name="testSortJoinCopy6">
+    <TestCase name="testSortJoinCopySemiJoinOrderByOffset">
         <Resource name="sql">
             <![CDATA[select * from sales.dept d where d.deptno in (select e.deptno from sales.emp e) order by d.deptno offset 2]]>
         </Resource>
