@@ -1472,27 +1472,24 @@ period:
 
 | Operator syntax | Description
 |:--------------- |:-----------
+| {fn ASCII(string)} | Returns the ASCII code of the first character of *string*; if the first character is a non-ASCII character, returns its Unicode code point; returns 0 if *string* is empty
 | {fn CONCAT(character, character)} | Returns the concatenation of character strings
 | {fn INSERT(string1, start, length, string2)} | Inserts *string2* into a slot in *string1*
-| {fn LCASE(string)}            | Returns a string in which all alphabetic characters in *string* have been converted to lower case
+| {fn LCASE(string)} | Returns a string in which all alphabetic characters in *string* have been converted to lower case
 | {fn LENGTH(string)} | Returns the number of characters in a string
 | {fn LOCATE(string1, string2 [, integer])} | Returns the position in *string2* of the first occurrence of *string1*. Searches from the beginning of *string2*, unless *integer* is specified.
+| {fn LEFT(string, length)} | Returns the leftmost *length* characters from *string*
 | {fn LTRIM(string)} | Returns *string* with leading space characters removed
+| {fn REPLACE(string, search, replacement)} | Returns a string in which all the occurrences of *search* in *string* are replaced with *replacement*; if *replacement* is the empty string, the occurrences of *search* are removed
+| {fn REVERSE(string)} | Returns *string* with the order of the characters reversed
+| {fn RIGHT(string, integer)} | Returns the rightmost *length* characters from *string*
 | {fn RTRIM(string)} | Returns *string* with trailing space characters removed
 | {fn SUBSTRING(string, offset, length)} | Returns a character string that consists of *length* characters from *string* starting at the *offset* position
 | {fn UCASE(string)} | Returns a string in which all alphabetic characters in *string* have been converted to upper case
-| {fn REPLACE(string, search, replacement)} | Returns a string in which all the occurrences of *search* in *string* are replaced with *replacement*; if *replacement* is the empty string, the occurrences of *search* are removed
-| {fn ASCII(string)} | Returns the corresponding ASCII code of the first character of *string*; Returns 0 if *string* is empty; Returns NULL if *string* is NULL; Returns the Unicode code point for non-ASCII character
 
 Not implemented:
 
 * {fn CHAR(string)}
-* {fn DIFFERENCE(string, string)}
-* {fn LEFT(string, integer)}
-* {fn REPEAT(string, integer)}
-* {fn RIGHT(string, integer)}
-* {fn SOUNDEX(string)}
-* {fn SPACE(integer)}
 
 #### Date/time
 
@@ -1514,10 +1511,6 @@ Not implemented:
 | {fn TIMESTAMPADD(timeUnit, count, datetime)} | Adds an interval of *count* *timeUnit*s to a datetime
 | {fn TIMESTAMPDIFF(timeUnit, timestamp1, timestamp2)} | Subtracts *timestamp1* from *timestamp2* and returns the result in *timeUnit*s
 
-Not implemented:
-
-* {fn DAYNAME(date)}
-* {fn MONTHNAME(date)}
 
 #### System
 
@@ -2095,24 +2088,38 @@ semantics.
 
 | C | Operator syntax                                | Description
 |:- |:-----------------------------------------------|:-----------
+| o | CHR(integer) | Returns the character having the binary equivalent to *integer* as a CHAR value
+| o | DECODE(value, value1, result1 [, valueN, resultN ]* [, default ]) | Compares *value* to each *valueN* value one by one; if *value* is equal to a *valueN*, returns the corresponding *resultN*, else returns *default*, or NULL if *default* is not specified
+| p | DIFFERENCE(string, string)                     | Returns a measure of the similarity of two strings, namely the number of character positions that their `SOUNDEX` values have in common: 4 if the `SOUNDEX` values are same and 0 if the `SOUNDEX` values are totally different
+| o | GREATEST(expr [, expr ]*)                      | Returns the greatest of the expressions
 | m | JSON_TYPE(jsonValue)                           | Returns a string value indicating the type of a *jsonValue*
 | m | JSON_DEPTH(jsonValue)                          | Returns an integer value indicating the depth of a *jsonValue*
 | m | JSON_PRETTY(jsonValue)                         | Returns a pretty-printing of *jsonValue*
 | m | JSON_LENGTH(jsonValue [, path ])               | Returns a integer indicating the length of *jsonValue*
 | m | JSON_KEYS(jsonValue [, path ])                 | Returns a string indicating the keys of a JSON *jsonValue*
-| o | DECODE(value, value1, result1 [, valueN, resultN ]* [, default ]) | Compares *value* to each *valueN* value one by one; if *value* is equal to a *valueN*, returns the corresponding *resultN*, else returns *default*, or NULL if *default* is not specified
-| o | NVL(value1, value2)                            | Returns *value1* if *value1* is not null, otherwise *value2*
-| o | LTRIM(string)                                  | Returns *string* with all blanks removed from the start
-| o | RTRIM(string)                                  | Returns *string* with all blanks removed from the end
-| o | SUBSTR(string, position [, substring_length ]) | Returns a portion of *string*, beginning at character *position*, *substring_length* characters long. SUBSTR calculates lengths using characters as defined by the input character set
-| o | GREATEST(expr [, expr ]*)                      | Returns the greatest of the expressions
+| m | JSON_REMOVE(jsonValue, path[, path])           | Removes data from *jsonValue* using a series of *path* expressions and returns the result
+| m | JSON_STORAGE_SIZE(jsonValue)                   | Returns the number of bytes used to store the binary representation of a *jsonValue*
 | o | LEAST(expr [, expr ]* )                        | Returns the least of the expressions
-| o p | TRANSLATE(expr, fromString, toString)          | Returns *expr* with all occurrences of each character in *fromString* replaced by its corresponding character in *toString*. Characters in *expr* that are not in *fromString* are not replaced
+| m p | LEFT(string, length)                         | Returns the leftmost *length* characters from the *string*
+| m | TO_BASE64(string)                              | Converts the *string* to base-64 encoded form and returns a encoded string
+| m | FROM_BASE64(string)                            | Returns the decoded result of a base-64 *string* as a string
+| m | {fn DAYNAME(date)}                             | Returns the date of the name of the weekday in a value of datatype DATE; For example, it returns '星期日' for both DATE'2020-02-10' and TIMESTAMP'2020-02-10 10:10:10'
+| m | {fn MONTHNAME(date)}                           | Returns the date of the name of the month in a value of datatype DATE; For example, it returns '二月' for both DATE'2020-02-10' and TIMESTAMP'2020-02-10 10:10:10'
+| o | LTRIM(string)                                  | Returns *string* with all blanks removed from the start
+| o | NVL(value1, value2)                            | Returns *value1* if *value1* is not null, otherwise *value2*
+| m p | REPEAT(string, integer)                      | Returns a string consisting of *string* repeated of *integer* times; returns an empty string if *integer* is less than 1
+| m | REVERSE(string)                                | Returns *string* with the order of the characters reversed
+| m p | RIGHT(string, length)                        | Returns the rightmost *length* characters from the *string*
+| o | RTRIM(string)                                  | Returns *string* with all blanks removed from the end
+| m o p | SOUNDEX(string)                            | Returns the phonetic representation of *string*; throws if *string* is encoded with multi-byte encoding such as UTF-8
+| m | SPACE(integer)                                 | Returns a string of *integer* spaces; returns an empty string if *integer* is less than 1
+| o | SUBSTR(string, position [, substring_length ]) | Returns a portion of *string*, beginning at character *position*, *substring_length* characters long. SUBSTR calculates lengths using characters as defined by the input character set
+| o p | TRANSLATE(expr, fromString, toString)        | Returns *expr* with all occurrences of each character in *fromString* replaced by its corresponding character in *toString*. Characters in *expr* that are not in *fromString* are not replaced
 
 Note:
 
-* `JSON_TYPE` / `JSON_DEPTH` return null if the argument is null
-* `JSON_TYPE` / `JSON_DEPTH` / `JSON_PRETTY` throw error if the argument is not a valid JSON value
+* `JSON_TYPE` / `JSON_DEPTH` / `JSON_PRETTY` / `JSON_STORAGE_SIZE` return null if the argument is null
+* `JSON_LENGTH` / `JSON_KEYS` / `JSON_REMOVE` return null if the first argument is null
 * `JSON_TYPE` generally returns an upper-case string flag indicating the type of the JSON input. Currently supported supported type flags are:
   * INTEGER
   * STRING
@@ -2211,6 +2218,43 @@ LIMIT 10;
 | ---------- | ---- | ----- | ---- | ---- |
 | ["a", "b"] | NULL | ["c"] | NULL | NULL |
 
+##### JSON_REMOVE example
+
+SQL
+
+ ```SQL
+SELECT JSON_REMOVE(v, '$[1]') AS c1
+FROM (VALUES ('["a", ["b", "c"], "d"]')) AS t(v)
+LIMIT 10;
+```
+
+ Result
+
+| c1         |
+| ---------- |
+| ["a", "d"] |
+
+
+##### JSON_STORAGE_SIZE example
+
+SQL
+
+ ```SQL
+SELECT
+JSON_STORAGE_SIZE('[100, \"sakila\", [1, 3, 5], 425.05]') AS c1,
+JSON_STORAGE_SIZE('{\"a\": 10, \"b\": \"a\", \"c\": \"[1, 3, 5, 7]\"}') AS c2,
+JSON_STORAGE_SIZE('{\"a\": 10, \"b\": \"xyz\", \"c\": \"[1, 3, 5, 7]\"}') AS c3,
+JSON_STORAGE_SIZE('[100, \"json\", [[10, 20, 30], 3, 5], 425.05]') AS c4
+limit 10;
+```
+
+ Result
+
+| c1 | c2 | c3 | c4 |
+| -- | ---| ---| -- |
+| 29 | 35 | 37 | 36 |
+
+
 #### DECODE example
 
 SQL
@@ -2253,7 +2297,6 @@ Not implemented:
 * JSON_INSERT
 * JSON_SET
 * JSON_REPLACE
-* JSON_REMOVE
 
 ## User-defined functions
 

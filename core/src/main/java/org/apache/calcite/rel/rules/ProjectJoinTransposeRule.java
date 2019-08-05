@@ -23,7 +23,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rel.core.SemiJoin;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -77,8 +76,8 @@ public class ProjectJoinTransposeRule extends RelOptRule {
     Project origProj = call.rel(0);
     final Join join = call.rel(1);
 
-    if (join instanceof SemiJoin) {
-      return; // TODO: support SemiJoin
+    if (!join.getJoinType().projectsRight()) {
+      return; // TODO: support SemiJoin / AntiJoin
     }
 
     // Normalize the join condition so we don't end up misidentified expanded

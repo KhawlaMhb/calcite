@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import java.util.ArrayList;
@@ -133,19 +134,135 @@ public abstract class SqlLibraryOperators {
   public static final SqlFunction TRANSLATE3 = new SqlTranslate3Function();
 
   @LibraryOperator(libraries = {MYSQL})
-  public static final SqlFunction JSON_TYPE = SqlStdOperatorTable.JSON_TYPE;
+  public static final SqlFunction JSON_TYPE = new SqlJsonTypeFunction();
 
   @LibraryOperator(libraries = {MYSQL})
-  public static final SqlFunction JSON_DEPTH = SqlStdOperatorTable.JSON_DEPTH;
+  public static final SqlFunction JSON_DEPTH = new SqlJsonDepthFunction();
 
   @LibraryOperator(libraries = {MYSQL})
-  public static final SqlFunction JSON_LENGTH = SqlStdOperatorTable.JSON_LENGTH;
+  public static final SqlFunction JSON_LENGTH = new SqlJsonLengthFunction();
 
   @LibraryOperator(libraries = {MYSQL})
-  public static final SqlFunction JSON_KEYS = SqlStdOperatorTable.JSON_KEYS;
+  public static final SqlFunction JSON_KEYS = new SqlJsonKeysFunction();
 
   @LibraryOperator(libraries = {MYSQL})
-  public static final SqlFunction JSON_PRETTY = SqlStdOperatorTable.JSON_PRETTY;
+  public static final SqlFunction JSON_PRETTY = new SqlJsonPrettyFunction();
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction JSON_REMOVE = new SqlJsonRemoveFunction();
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction JSON_STORAGE_SIZE = new SqlJsonStorageSizeFunction();
+
+  /** The "MONTHNAME(datetime)" function; returns the name of the month,
+   * in the current locale, of a TIMESTAMP or DATE argument. */
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction MONTHNAME =
+      new SqlFunction("MONTHNAME", SqlKind.OTHER_FUNCTION,
+          ReturnTypes.VARCHAR_2000, null, OperandTypes.DATETIME,
+          SqlFunctionCategory.TIMEDATE);
+
+  /** The "DAYNAME(datetime)" function; returns the name of the day of the week,
+   * in the current locale, of a TIMESTAMP or DATE argument. */
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction DAYNAME =
+      new SqlFunction("DAYNAME", SqlKind.OTHER_FUNCTION,
+          ReturnTypes.VARCHAR_2000, null, OperandTypes.DATETIME,
+          SqlFunctionCategory.TIMEDATE);
+
+  @LibraryOperator(libraries = {MYSQL, POSTGRESQL})
+  public static final SqlFunction LEFT =
+      new SqlFunction("LEFT", SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0_NULLABLE_VARYING, null,
+          OperandTypes.CBSTRING_INTEGER, SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL, POSTGRESQL})
+  public static final SqlFunction REPEAT =
+      new SqlFunction(
+          "REPEAT",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0_NULLABLE_VARYING,
+          null,
+          OperandTypes.STRING_INTEGER,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL, POSTGRESQL})
+  public static final SqlFunction RIGHT =
+      new SqlFunction("RIGHT", SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0_NULLABLE_VARYING, null,
+          OperandTypes.CBSTRING_INTEGER, SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction SPACE =
+      new SqlFunction(
+          "SPACE",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.VARCHAR_2000_NULLABLE,
+          null,
+          OperandTypes.INTEGER,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL, POSTGRESQL, ORACLE})
+  public static final SqlFunction SOUNDEX =
+      new SqlFunction(
+          "SOUNDEX",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.VARCHAR_4_NULLABLE,
+          null,
+          OperandTypes.CHARACTER,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {POSTGRESQL})
+  public static final SqlFunction DIFFERENCE =
+      new SqlFunction(
+          "DIFFERENCE",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.INTEGER_NULLABLE,
+          null,
+          OperandTypes.STRING_STRING,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction REVERSE =
+      new SqlFunction(
+          "REVERSE",
+          SqlKind.REVERSE,
+          ReturnTypes.ARG0_NULLABLE_VARYING,
+          null,
+          OperandTypes.CHARACTER,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction FROM_BASE64 =
+      new SqlFunction(
+          "FROM_BASE64",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.cascade(
+                  ReturnTypes.explicit(SqlTypeName.VARBINARY), SqlTypeTransforms.TO_NULLABLE),
+          null,
+          OperandTypes.STRING,
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {MYSQL})
+  public static final SqlFunction TO_BASE64 =
+      new SqlFunction(
+          "TO_BASE64",
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.cascade(
+                  ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+          null,
+          OperandTypes.or(OperandTypes.STRING, OperandTypes.BINARY),
+          SqlFunctionCategory.STRING);
+
+  @LibraryOperator(libraries = {ORACLE})
+  public static final SqlFunction CHR =
+          new SqlFunction(
+                  "CHR",
+                  SqlKind.OTHER_FUNCTION,
+                  ReturnTypes.CHAR,
+                  null,
+                  OperandTypes.INTEGER,
+                  SqlFunctionCategory.STRING);
 }
 
 // End SqlLibraryOperators.java

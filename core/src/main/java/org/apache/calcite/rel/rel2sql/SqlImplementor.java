@@ -20,10 +20,10 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.tree.Expressions;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
@@ -100,7 +100,11 @@ import javax.annotation.Nonnull;
  */
 public abstract class SqlImplementor {
 
-  public static final SqlParserPos POS = SqlParserPos.ZERO;
+  // Always use quoted position, the "isQuoted" info is only used when
+  // unparsing a SqlIdentifier. For some rex nodes, saying RexInputRef, we have
+  // no idea about whether it is quoted or not for the original sql statement.
+  // So we just quote it.
+  public static final SqlParserPos POS = SqlParserPos.QUOTED_ZERO;
 
   public final SqlDialect dialect;
   protected final Set<String> aliasSet = new LinkedHashSet<>();
@@ -119,10 +123,23 @@ public abstract class SqlImplementor {
     String name = rowType.getFieldNames().get(selectList.size());
     String alias = SqlValidatorUtil.getAlias(node, -1);
     if (alias == null || !alias.equals(name)) {
-      node = SqlStdOperatorTable.AS.createCall(
-          POS, node, new SqlIdentifier(name, POS));
+      node = as(node, name);
     }
     selectList.add(node);
+  }
+
+  /** Convenience method for creating column and table aliases.
+   *
+   * <p>{@code AS(e, "c")} creates "e AS c";
+   * {@code AS(e, "t", "c1", "c2"} creates "e AS t (c1, c2)". */
+  protected SqlCall as(SqlNode e, String alias, String... fieldNames) {
+    final List<SqlNode> operandList = new ArrayList<>();
+    operandList.add(e);
+    operandList.add(new SqlIdentifier(alias, POS));
+    for (String fieldName : fieldNames) {
+      operandList.add(new SqlIdentifier(fieldName, POS));
+    }
+    return SqlStdOperatorTable.AS.createCall(POS, operandList);
   }
 
   /** Returns whether a list of expressions projects all fields, in order,
@@ -219,6 +236,7 @@ public abstract class SqlImplementor {
     case GREATER_THAN_OR_EQUAL:
     case LESS_THAN:
     case LESS_THAN_OR_EQUAL:
+    case LIKE:
       node = stripCastFromString(node);
       operands = ((RexCall) node).getOperands();
       op = ((RexCall) node).getOperator();
@@ -408,8 +426,29 @@ public abstract class SqlImplementor {
                 || ((SqlCall) node).getOperator() == SqlStdOperatorTable.AS
                 || ((SqlCall) node).getOperator() == SqlStdOperatorTable.VALUES)
         : node;
+    if (requiresAlias(node)) {
+      node = as(node, "t");
+    }
     return new SqlSelect(POS, SqlNodeList.EMPTY, null, node, null, null, null,
         SqlNodeList.EMPTY, null, null, null);
+  }
+
+  /** Returns whether we need to add an alias if this node is to be the FROM
+   * clause of a SELECT. */
+  private boolean requiresAlias(SqlNode node) {
+    if (!dialect.requiresAliasForFromItems()) {
+      return false;
+    }
+    switch (node.getKind()) {
+    case IDENTIFIER:
+      return !dialect.hasImplicitTableAlias();
+    case AS:
+    case JOIN:
+    case EXPLICIT_TABLE:
+      return false;
+    default:
+      return true;
+    }
   }
 
   /** Context for translating a {@link RexNode} expression (within a
@@ -500,10 +539,10 @@ public abstract class SqlImplementor {
         case NUMERIC:
         case EXACT_NUMERIC:
           return SqlLiteral.createExactNumeric(
-              literal.getValueAs(BigDecimal.class).toString(), POS);
+              literal.getValueAs(BigDecimal.class).toPlainString(), POS);
         case APPROXIMATE_NUMERIC:
           return SqlLiteral.createApproxNumeric(
-              literal.getValueAs(BigDecimal.class).toString(), POS);
+              literal.getValueAs(BigDecimal.class).toPlainString(), POS);
         case BOOLEAN:
           return SqlLiteral.createBoolean(literal.getValueAs(Boolean.class),
               POS);
@@ -1036,9 +1075,9 @@ public abstract class SqlImplementor {
           needNew = true;
         }
       }
-      if (rel instanceof LogicalAggregate
+      if (rel instanceof Aggregate
           && !dialect.supportsNestedAggregations()
-          && hasNestedAggregations((LogicalAggregate) rel)) {
+          && hasNestedAggregations((Aggregate) rel)) {
         needNew = true;
       }
 
@@ -1085,7 +1124,7 @@ public abstract class SqlImplementor {
           needNew ? null : aliases);
     }
 
-    private boolean hasNestedAggregations(LogicalAggregate rel) {
+    private boolean hasNestedAggregations(Aggregate rel) {
       if (node instanceof SqlSelect) {
         final SqlNodeList selectList = ((SqlSelect) node).getSelectList();
         if (selectList != null) {

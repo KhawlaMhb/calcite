@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql.dialect;
 
+import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.config.NullCollation;
@@ -50,6 +51,7 @@ public class MysqlSqlDialect extends SqlDialect {
       new MysqlSqlDialect(EMPTY_CONTEXT
           .withDatabaseProduct(DatabaseProduct.MYSQL)
           .withIdentifierQuoteString("`")
+          .withUnquotedCasing(Casing.UNCHANGED)
           .withNullCollation(NullCollation.LOW));
 
   /** MySQL specific function. */
@@ -67,6 +69,15 @@ public class MysqlSqlDialect extends SqlDialect {
   }
 
   @Override public boolean supportsCharSet() {
+    return false;
+  }
+
+  @Override public boolean requiresAliasForFromItems() {
+    return true;
+  }
+
+  public boolean supportsAliasedValues() {
+    // MySQL supports VALUES only in INSERT; not in a FROM clause
     return false;
   }
 

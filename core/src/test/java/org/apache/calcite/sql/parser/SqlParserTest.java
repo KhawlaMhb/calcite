@@ -19,6 +19,7 @@ package org.apache.calcite.sql.parser;
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -618,6 +619,11 @@ public class SqlParserTest {
             .build());
   }
 
+  protected SqlParser getDialectSqlParser(String sql, SqlDialect dialect) {
+    return SqlParser.create(new SourceStringReader(sql),
+        dialect.configureParser(SqlParser.configBuilder()).build());
+  }
+
   protected void checkExp(
       String sql,
       String expected) {
@@ -970,7 +976,7 @@ public class SqlParserTest {
     //   you that != is SQL's not-equals operator; those texts are false;
     //   it's one of those unstampoutable urban myths."
     // Therefore, we only support != with certain SQL conformance levels.
-    checkExpFails("'abc'!=123",
+    checkExpFails("'abc'^!=^123",
         "Bang equal '!=' is not allowed under the current SQL conformance level");
   }
 
@@ -1122,9 +1128,11 @@ public class SqlParserTest {
     return false;
   }
 
-  @Test public void testRowWitDot() {
+  @Test public void testRowWithDot() {
     check("select (1,2).a from c.t", "SELECT ((ROW(1, 2)).`A`)\nFROM `C`.`T`");
     check("select row(1,2).a from c.t", "SELECT ((ROW(1, 2)).`A`)\nFROM `C`.`T`");
+    check("select tbl.foo(0).col.bar from tbl",
+        "SELECT ((`TBL`.`FOO`(0).`COL`).`BAR`)\nFROM `TBL`");
   }
 
   @Test public void testPeriod() {
@@ -1578,7 +1586,7 @@ public class SqlParserTest {
     checkExp("1-2+3*4/5/6-7", "(((1 - 2) + (((3 * 4) / 5) / 6)) - 7)");
     checkExp("power(2,3)", "POWER(2, 3)");
     checkExp("aBs(-2.3e-2)", "ABS(-2.3E-2)");
-    checkExp("MOD(5             ,\t\f\r\n2)", "(MOD(5, 2))");
+    checkExp("MOD(5             ,\t\f\r\n2)", "MOD(5, 2)");
     checkExp("ln(5.43  )", "LN(5.43)");
     checkExp("log10(- -.2  )", "LOG10(0.2)");
   }
@@ -1637,7 +1645,7 @@ public class SqlParserTest {
             + "FROM `EMP`");
     checkExp(
         "log10(1)\r\n+power(2, mod(\r\n3\n\t\t\f\n,ln(4))*log10(5)-6*log10(7/abs(8)+9))*power(10,11)",
-        "(LOG10(1) + (POWER(2, (((MOD(3, LN(4))) * LOG10(5)) - (6 * LOG10(((7 / ABS(8)) + 9))))) * POWER(10, 11)))");
+        "(LOG10(1) + (POWER(2, ((MOD(3, LN(4)) * LOG10(5)) - (6 * LOG10(((7 / ABS(8)) + 9))))) * POWER(10, 11)))");
   }
 
   @Test public void testFunctionWithDistinct() {
@@ -1804,6 +1812,12 @@ public class SqlParserTest {
             + "FROM `EMP`\n"
             + "GROUP BY GROUPING SETS(`DEPTNO`, (`DEPTNO`, `GENDER`), ())");
 
+    sql("select deptno from emp\n"
+        + "group by grouping sets ((deptno, gender), (deptno), (), gender)")
+        .ok("SELECT `DEPTNO`\n"
+            + "FROM `EMP`\n"
+            + "GROUP BY GROUPING SETS((`DEPTNO`, `GENDER`), `DEPTNO`, (), `GENDER`)");
+
     // Grouping sets must have parentheses
     sql("select deptno from emp\n"
         + "group by grouping sets ^deptno^, (deptno, gender), ()")
@@ -1864,7 +1878,7 @@ public class SqlParserTest {
   @Test public void testGrouping() {
     sql("select deptno, grouping(deptno) from emp\n"
         + "group by grouping sets (deptno, (deptno, gender), ())")
-        .ok("SELECT `DEPTNO`, (GROUPING(`DEPTNO`))\n"
+        .ok("SELECT `DEPTNO`, GROUPING(`DEPTNO`)\n"
             + "FROM `EMP`\n"
             + "GROUP BY GROUPING SETS(`DEPTNO`, (`DEPTNO`, `GENDER`), ())");
   }
@@ -2213,7 +2227,7 @@ public class SqlParserTest {
   @Test public void testSetMinus() {
     final String pattern =
         "MINUS is not allowed under the current SQL conformance level";
-    final String sql = "select col1 from table1 MINUS select col1 from table2";
+    final String sql = "select col1 from table1 ^MINUS^ select col1 from table2";
     sql(sql).fails(pattern);
 
     conformance = SqlConformanceEnum.ORACLE_10;
@@ -2222,7 +2236,7 @@ public class SqlParserTest {
         + "EXCEPT\n"
         + "SELECT `COL1`\n"
         + "FROM `TABLE2`)";
-    sql(sql).ok(expected);
+    sql(sql).sansCarets().ok(expected);
 
     final String sql2 =
         "select col1 from table1 MINUS ALL select col1 from table2";
@@ -2435,21 +2449,21 @@ public class SqlParserTest {
     final String pattern =
         "APPLY operator is not allowed under the current SQL conformance level";
     final String sql = "select * from dept\n"
-        + "cross apply table(ramp(deptno)) as t(a)";
+        + "cross apply table(ramp(deptno)) as t(a^)^";
     sql(sql).fails(pattern);
 
     conformance = SqlConformanceEnum.SQL_SERVER_2008;
     final String expected = "SELECT *\n"
         + "FROM `DEPT`\n"
         + "CROSS JOIN LATERAL TABLE(`RAMP`(`DEPTNO`)) AS `T` (`A`)";
-    sql(sql).ok(expected);
+    sql(sql).sansCarets().ok(expected);
 
     // Supported in Oracle 12 but not Oracle 10
     conformance = SqlConformanceEnum.ORACLE_10;
     sql(sql).fails(pattern);
 
     conformance = SqlConformanceEnum.ORACLE_12;
-    sql(sql).ok(expected);
+    sql(sql).sansCarets().ok(expected);
   }
 
   /** Tests OUTER APPLY. */
@@ -2534,6 +2548,29 @@ public class SqlParserTest {
             + "from emp as x tablesample bernoulli(50)",
         "SELECT *\n"
             + "FROM `EMP` AS `X` TABLESAMPLE BERNOULLI(50.0)");
+
+    check(
+        "select * "
+            + "from emp as x "
+            + "tablesample bernoulli(50) REPEATABLE(10) ",
+        "SELECT *\n"
+            + "FROM `EMP` AS `X` TABLESAMPLE BERNOULLI(50.0) REPEATABLE(10)");
+
+    // test repeatable with invalid int literal.
+    checkFails(
+        "select * "
+            + "from emp as x "
+            + "tablesample bernoulli(50) REPEATABLE(^100000000000000000000^) ",
+        "Literal '100000000000000000000' "
+            + "can not be parsed to type 'java\\.lang\\.Integer'");
+
+    // test repeatable with invalid negative int literal.
+    checkFails(
+        "select * "
+            + "from emp as x "
+            + "tablesample bernoulli(50) REPEATABLE(-^100000000000000000000^) ",
+        "Literal '100000000000000000000' "
+            + "can not be parsed to type 'java\\.lang\\.Integer'");
   }
 
   @Test public void testLiteral() {
@@ -2810,7 +2847,7 @@ public class SqlParserTest {
     conformance = SqlConformanceEnum.DEFAULT;
     final String error = "'LIMIT start, count' is not allowed under the "
         + "current SQL conformance level";
-    sql("select a from foo limit 1,2")
+    sql("select a from foo limit 1,^2^")
         .fails(error);
 
     // "limit all" is equivalent to no limit
@@ -4029,7 +4066,7 @@ public class SqlParserTest {
   @Test public void testNullIf() {
     checkExp(
         "nullif(v1,v2)",
-        "(NULLIF(`V1`, `V2`))");
+        "NULLIF(`V1`, `V2`)");
     if (isReserved("NULLIF")) {
       checkExpFails(
           "1 + ^nullif^ + 3",
@@ -4040,13 +4077,13 @@ public class SqlParserTest {
   @Test public void testCoalesce() {
     checkExp(
         "coalesce(v1)",
-        "(COALESCE(`V1`))");
+        "COALESCE(`V1`)");
     checkExp(
         "coalesce(v1,v2)",
-        "(COALESCE(`V1`, `V2`))");
+        "COALESCE(`V1`, `V2`)");
     checkExp(
         "coalesce(v1,v2,v3)",
-        "(COALESCE(`V1`, `V2`, `V3`))");
+        "COALESCE(`V1`, `V2`, `V3`)");
   }
 
   @Test public void testLiteralCollate() {
@@ -4118,7 +4155,7 @@ public class SqlParserTest {
     // checkFails("SELECT CURRENT_TIME() FROM foo",
     //     "SELECT CURRENT_TIME() FROM `FOO`");
 
-    checkExp("CURRENT_TIME", "`CURRENT_TIME`");
+    checkExp("CURRENT_TIME", "CURRENT_TIME");
     checkExp("CURRENT_TIME(x+y)", "CURRENT_TIME((`X` + `Y`))");
 
     // LOCALTIME returns time w/o TZ
@@ -4127,7 +4164,7 @@ public class SqlParserTest {
     // checkFails("SELECT LOCALTIME() FROM foo",
     //     "SELECT LOCALTIME() FROM `FOO`");
 
-    checkExp("LOCALTIME", "`LOCALTIME`");
+    checkExp("LOCALTIME", "LOCALTIME");
     checkExp("LOCALTIME(x+y)", "LOCALTIME((`X` + `Y`))");
 
     // LOCALTIMESTAMP - returns timestamp w/o TZ
@@ -4136,7 +4173,7 @@ public class SqlParserTest {
     // checkFails("SELECT LOCALTIMESTAMP() FROM foo",
     //     "SELECT LOCALTIMESTAMP() FROM `FOO`");
 
-    checkExp("LOCALTIMESTAMP", "`LOCALTIMESTAMP`");
+    checkExp("LOCALTIMESTAMP", "LOCALTIMESTAMP");
     checkExp("LOCALTIMESTAMP(x+y)", "LOCALTIMESTAMP((`X` + `Y`))");
 
     // CURRENT_DATE - returns DATE
@@ -4144,7 +4181,7 @@ public class SqlParserTest {
 
     // checkFails("SELECT CURRENT_DATE() FROM foo",
     //     "SELECT CURRENT_DATE() FROM `FOO`");
-    checkExp("CURRENT_DATE", "`CURRENT_DATE`");
+    checkExp("CURRENT_DATE", "CURRENT_DATE");
 
     // checkFails("SELECT CURRENT_DATE(x+y) FROM foo",
     //     "CURRENT_DATE((`X` + `Y`))");
@@ -4155,7 +4192,7 @@ public class SqlParserTest {
     // checkFails("SELECT CURRENT_TIMESTAMP() FROM foo",
     //     "SELECT CURRENT_TIMESTAMP() FROM `FOO`");
 
-    checkExp("CURRENT_TIMESTAMP", "`CURRENT_TIMESTAMP`");
+    checkExp("CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP");
     checkExp("CURRENT_TIMESTAMP(x+y)", "CURRENT_TIMESTAMP((`X` + `Y`))");
 
     // Date literals
@@ -4231,8 +4268,8 @@ public class SqlParserTest {
     checkExp(
         "trim (coalesce(cast(null as varchar(2)))||"
             + "' '||coalesce('junk ',''))",
-        "TRIM(BOTH ' ' FROM (((COALESCE(CAST(NULL AS VARCHAR(2)))) || "
-            + "' ') || (COALESCE('junk ', ''))))");
+        "TRIM(BOTH ' ' FROM ((COALESCE(CAST(NULL AS VARCHAR(2))) || "
+            + "' ') || COALESCE('junk ', '')))");
 
     checkFails(
         "trim(^from^ 'beard')",
@@ -7121,7 +7158,7 @@ public class SqlParserTest {
   }
 
   @Test public void testGeometry() {
-    checkExpFails("cast(null as geometry)",
+    checkExpFails("cast(null as ^geometry^)",
         "Geo-spatial extensions and the GEOMETRY data type are not enabled");
     conformance = SqlConformanceEnum.LENIENT;
     checkExp("cast(null as geometry)", "CAST(NULL AS GEOMETRY)");
@@ -7234,8 +7271,8 @@ public class SqlParserTest {
         .build();
 
     List<String> functions = ImmutableList.<String>builder()
-        .add("timestampadd(%1$s, 12, %2$scurrent_timestamp%2$s)")
-        .add("timestampdiff(%1$s, %2$scurrent_timestamp%2$s, %2$scurrent_timestamp%2$s)")
+        .add("timestampadd(%1$s, 12, current_timestamp)")
+        .add("timestampdiff(%1$s, current_timestamp, current_timestamp)")
         .build();
 
     for (Map.Entry<String, List<String>> intervalGroup : tsi.entrySet()) {
@@ -7512,6 +7549,24 @@ public class SqlParserTest {
     checkExpFails(
         "\"SUBSTRING\"('a' ^from^ 1)",
         "(?s).*Encountered \"from\" at .*");
+  }
+
+  /**
+   * Tests that applying member function of a specific type as a suffix function
+   */
+  @Test public void testMemberFunction() {
+    check("SELECT myColumn.func(a, b) FROM tbl",
+        "SELECT `MYCOLUMN`.`FUNC`(`A`, `B`)\n"
+            + "FROM `TBL`");
+    check("SELECT myColumn.mySubField.func() FROM tbl",
+        "SELECT `MYCOLUMN`.`MYSUBFIELD`.`FUNC`()\n"
+            + "FROM `TBL`");
+    check("SELECT tbl.myColumn.mySubField.func() FROM tbl",
+        "SELECT `TBL`.`MYCOLUMN`.`MYSUBFIELD`.`FUNC`()\n"
+            + "FROM `TBL`");
+    check("SELECT tbl.foo(0).col.bar(2, 3) FROM tbl",
+        "SELECT ((`TBL`.`FOO`(0).`COL`).`BAR`(2, 3))\n"
+            + "FROM `TBL`");
   }
 
   @Test public void testUnicodeLiteral() {
@@ -8634,6 +8689,13 @@ public class SqlParserTest {
             "JSON_KEYS('{\"foo\": \"bar\"}', 'invalid $')");
   }
 
+  @Test public void testJsonRemove() {
+    checkExp("json_remove('[\"a\", [\"b\", \"c\"], \"d\"]', '$')",
+            "JSON_REMOVE('[\"a\", [\"b\", \"c\"], \"d\"]', '$')");
+    checkExp("json_remove('[\"a\", [\"b\", \"c\"], \"d\"]', '$[1]', '$[0]')",
+            "JSON_REMOVE('[\"a\", [\"b\", \"c\"], \"d\"]', '$[1]', '$[0]')");
+  }
+
   @Test public void testJsonObjectAgg() {
     checkExp("json_objectagg(k_column: v_column)",
         "JSON_OBJECTAGG(KEY `K_COLUMN` VALUE `V_COLUMN` NULL ON NULL)");
@@ -8667,6 +8729,13 @@ public class SqlParserTest {
             "JSON_PRETTY('foo')");
     checkExp("json_pretty(null)",
             "JSON_PRETTY(NULL)");
+  }
+
+  @Test public void testJsonStorageSize() {
+    checkExp("json_storage_size('foo')",
+        "JSON_STORAGE_SIZE('foo')");
+    checkExp("json_storage_size(null)",
+        "JSON_STORAGE_SIZE(NULL)");
   }
 
   @Test public void testJsonArrayAgg1() {
@@ -8720,6 +8789,53 @@ public class SqlParserTest {
     assertEquals(node2.toString(), node1.toString());
   }
 
+  @Test public void testConfigureFromDialect() throws SqlParseException {
+    // Calcite's default converts unquoted identifiers to upper case
+    checkDialect(SqlDialect.DatabaseProduct.CALCITE.getDialect(),
+        "select unquotedColumn from \"doubleQuotedTable\"",
+        is("SELECT \"UNQUOTEDCOLUMN\"\n"
+            + "FROM \"doubleQuotedTable\""));
+    // MySQL leaves unquoted identifiers unchanged
+    checkDialect(SqlDialect.DatabaseProduct.MYSQL.getDialect(),
+        "select unquotedColumn from `doubleQuotedTable`",
+        is("SELECT `unquotedColumn`\n"
+            + "FROM `doubleQuotedTable`"));
+    // Oracle converts unquoted identifiers to upper case
+    checkDialect(SqlDialect.DatabaseProduct.ORACLE.getDialect(),
+        "select unquotedColumn from \"doubleQuotedTable\"",
+        is("SELECT \"UNQUOTEDCOLUMN\"\n"
+            + "FROM \"doubleQuotedTable\""));
+    // PostgreSQL converts unquoted identifiers to lower case
+    checkDialect(SqlDialect.DatabaseProduct.POSTGRESQL.getDialect(),
+        "select unquotedColumn from \"doubleQuotedTable\"",
+        is("SELECT \"unquotedcolumn\"\n"
+            + "FROM \"doubleQuotedTable\""));
+    // Redshift converts all identifiers to lower case
+    checkDialect(SqlDialect.DatabaseProduct.REDSHIFT.getDialect(),
+        "select unquotedColumn from \"doubleQuotedTable\"",
+        is("SELECT \"unquotedcolumn\"\n"
+            + "FROM \"doublequotedtable\""));
+  }
+
+  @Test public void testParenthesizedSubQueries() {
+    final String expected = "SELECT *\n"
+        + "FROM (SELECT *\n"
+        + "FROM `TAB`) AS `X`";
+
+    final String sql1 = "SELECT * FROM (((SELECT * FROM tab))) X";
+    sql(sql1).ok(expected);
+
+    final String sql2 = "SELECT * FROM ((((((((((((SELECT * FROM tab)))))))))))) X";
+    sql(sql2).ok(expected);
+  }
+
+  protected void checkDialect(SqlDialect dialect, String sql,
+      Matcher<String> matcher) throws SqlParseException {
+    final SqlParser parser = getDialectSqlParser(sql, dialect);
+    final SqlNode node = parser.parseStmt();
+    assertThat(linux(node.toSqlString(dialect).getSql()), matcher);
+  }
+
   //~ Inner Interfaces -------------------------------------------------------
 
   /**
@@ -8749,11 +8865,8 @@ public class SqlParserTest {
         SqlNode sqlNode,
         String expected) {
       // no dialect, always parenthesize
-      String actual = sqlNode.toSqlString(null, true).getSql();
-      if (LINUXIFY.get()[0]) {
-        actual = Util.toLinux(actual);
-      }
-      TestUtil.assertEqualsVerbose(expected, actual);
+      final String actual = sqlNode.toSqlString(null, true).getSql();
+      TestUtil.assertEqualsVerbose(expected, linux(actual));
     }
 
     @Override public void checkList(
@@ -8800,11 +8913,8 @@ public class SqlParserTest {
         String sql,
         String expected) {
       final SqlNode sqlNode = parseExpressionAndHandleEx(sql);
-      String actual = sqlNode.toSqlString(null, true).getSql();
-      if (LINUXIFY.get()[0]) {
-        actual = Util.toLinux(actual);
-      }
-      TestUtil.assertEqualsVerbose(expected, actual);
+      final String actual = sqlNode.toSqlString(null, true).getSql();
+      TestUtil.assertEqualsVerbose(expected, linux(actual));
     }
 
     protected SqlNode parseExpressionAndHandleEx(String sql) {
@@ -9008,6 +9118,8 @@ public class SqlParserTest {
     }
   }
 
+  /** Converts a string to linux format (LF line endings rather than CR-LF),
+   * except if disabled in {@link #LINUXIFY}. */
   private String linux(String s) {
     if (LINUXIFY.get()[0]) {
       s = Util.toLinux(s);

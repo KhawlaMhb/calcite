@@ -2704,6 +2704,39 @@ public class RexProgramTest extends RexProgramBuilderBase {
     assertThat(e.toString(), is("IN(?0.int0, 1, 2)"));
   }
 
+  /** Unit test for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-3192">[CALCITE-3192]
+   * Simplify OR incorrectly weaks condition</a>. */
+  @Test public void testOrSimplificationNotWeakensCondition() {
+    // "1 < a or (a < 3 and b = 2)" can't be simplified
+    checkSimplifyUnchanged(
+        or(
+            lt(literal(1), vIntNotNull()),
+            and(
+                lt(vIntNotNull(), literal(3)),
+                vBoolNotNull(2))));
+  }
+
+  @Test public void testIsNullSimplificationWithUnaryPlus() {
+    RexNode expr =
+        isNotNull(coalesce(unaryPlus(vInt(1)), vIntNotNull(0)));
+    RexNode s = simplify.simplifyUnknownAs(expr, RexUnknownAs.UNKNOWN);
+
+    assertThat(expr.isAlwaysTrue(), is(true));
+    assertThat(s, is(trueLiteral));
+  }
+
+  @Test public void testIsNullSimplificationWithIsDistinctFrom() {
+    RexNode expr =
+        isNotNull(
+            case_(vBool(),
+                isDistinctFrom(falseLiteral, vBoolNotNull(0)),
+                vBoolNotNull(2)));
+    RexNode s = simplify.simplifyUnknownAs(expr, RexUnknownAs.UNKNOWN);
+
+    assertThat(expr.isAlwaysTrue(), is(true));
+    assertThat(s, is(trueLiteral));
+  }
 }
 
 // End RexProgramTest.java

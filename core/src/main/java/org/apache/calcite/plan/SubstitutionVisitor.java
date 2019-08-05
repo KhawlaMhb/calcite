@@ -495,7 +495,8 @@ public class SubstitutionVisitor {
     for (MutableRel targetDescendant : targetDescendants) {
       MutableRel queryDescendant = map.get(targetDescendant);
       if (queryDescendant != null) {
-        assert queryDescendant.rowType.equals(targetDescendant.rowType);
+        assert rowTypesAreEquivalent(
+            queryDescendant, targetDescendant, Litmus.THROW);
         equivalents.put(queryDescendant, targetDescendant);
       }
     }
@@ -532,7 +533,7 @@ public class SubstitutionVisitor {
               if (result != null) {
                 ++count;
                 attempted.add(new Replacement(result.call.query, result.result));
-                MutableRel parent = result.call.query.replaceInParent(result.result);
+                result.call.query.replaceInParent(result.result);
 
                 // Replace previous equivalents with new equivalents, higher up
                 // the tree.
@@ -542,8 +543,7 @@ public class SubstitutionVisitor {
                     equivalents.remove(slots[i], equi.iterator().next());
                   }
                 }
-                assert result.result.rowType.equals(result.call.query.rowType)
-                    : Pair.of(result.result, result.call.query);
+                assert rowTypesAreEquivalent(result.result, result.call.query, Litmus.THROW);
                 equivalents.put(result.result, result.call.query);
                 if (targetDescendant == target) {
                   // A real substitution happens. We purge the attempted
@@ -591,6 +591,23 @@ public class SubstitutionVisitor {
       undoReplacement(attempted);
     }
     return substitutions;
+  }
+
+  /**
+   * Equivalence checking for row types, but except for the field names.
+   */
+  private boolean rowTypesAreEquivalent(
+      MutableRel rel0, MutableRel rel1, Litmus litmus) {
+    if (rel0.rowType.getFieldCount() != rel1.rowType.getFieldCount()) {
+      return litmus.fail("Mismatch for column count: [{}]", Pair.of(rel0, rel1));
+    }
+    for (Pair<RelDataTypeField, RelDataTypeField> pair
+        : Pair.zip(rel0.rowType.getFieldList(), rel0.rowType.getFieldList())) {
+      if (!pair.left.getType().equals(pair.right.getType())) {
+        return litmus.fail("Mismatch for column type: [{}]", Pair.of(rel0, rel1));
+      }
+    }
+    return litmus.succeed();
   }
 
   /**
@@ -973,7 +990,7 @@ public class SubstitutionVisitor {
 
     public UnifyResult apply(UnifyRuleCall call) {
       if (call.query.equals(call.target)) {
-        return call.result(call.query);
+        return call.result(call.target);
       }
       return null;
     }
@@ -1340,10 +1357,29 @@ public class SubstitutionVisitor {
       if (mapping == null) {
         return null;
       }
+      Mapping inverseMapping = mapping.inverse();
       final MutableAggregate aggregate2 =
-          permute(query, project.getInput(), mapping.inverse());
-      final MutableRel result = unifyAggregates(aggregate2, target);
-      return result == null ? null : call.result(result);
+          permute(query, project.getInput(), inverseMapping);
+      final MutableRel unifiedAggregate = unifyAggregates(aggregate2, target);
+      if (unifiedAggregate == null) {
+        return null;
+      }
+      MutableRel result = unifiedAggregate;
+      // Add Project if the mapping breaks order of fields in GroupSet
+      if (!Mappings.keepsOrdering(mapping)) {
+        final List<Integer> posList = new ArrayList<>();
+        final int fieldCount = aggregate2.rowType.getFieldCount();
+        for (int group: aggregate2.groupSet) {
+          if (inverseMapping.getTargetOpt(group) != -1) {
+            posList.add(inverseMapping.getTarget(group));
+          }
+        }
+        for (int i = posList.size(); i < fieldCount; i++) {
+          posList.add(i);
+        }
+        result = MutableRels.createProject(unifiedAggregate, posList);
+      }
+      return call.result(result);
     }
   }
 

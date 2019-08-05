@@ -31,15 +31,15 @@ adapters.
 
 ## Building from a source distribution
 
-Prerequisite is Java (JDK 8, 9, 10 or 11) on your path.
+Prerequisite is Java (JDK 8, 9, 10, 11, or 12) on your path.
 
 Unpack the source distribution `.tar.gz` file,
 `cd` to the root directory of the unpacked source,
 then build using the included maven wrapper:
 
 {% highlight bash %}
-$ tar xvfz calcite-1.19.0-source.tar.gz
-$ cd calcite-1.19.0
+$ tar xvfz calcite-1.20.0-source.tar.gz
+$ cd calcite-1.20.0
 $ ./mvnw install
 {% endhighlight %}
 
@@ -49,7 +49,7 @@ tests.
 ## Building from git
 
 Prerequisites are git
-and Java (JDK 8, 9, 10 or 11) on your path.
+and Java (JDK 8, 9, 10, 11, or 12) on your path.
 
 Create a local copy of the github repository,
 `cd` to its root directory,
@@ -906,7 +906,7 @@ Merge the release branch back into `master` (e.g. `git merge --ff-only branch-X.
 After 24 hours, announce the release by sending an email to
 [announce@apache.org](https://mail-archives.apache.org/mod_mbox/www-announce/).
 You can use
-[the 1.10.0 announcement](https://mail-archives.apache.org/mod_mbox/calcite-dev/201610.mbox/%3C11A13D1A-8364-4A34-A11B-A8E5EA57A740%40apache.org%3E)
+[the 1.20.0 announcement](https://mail-archives.apache.org/mod_mbox/www-announce/201906.mbox/%3CCA%2BEpF8tcJcZ41rVuwJODJmyRy-qAxZUQm9OxKsoDi07c2SKs_A%40mail.gmail.com%3E)
 as a template. Be sure to include a brief description of the project.
 
 ## Publishing the web site (for Calcite committers)

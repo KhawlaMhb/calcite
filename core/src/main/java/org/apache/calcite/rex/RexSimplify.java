@@ -502,7 +502,7 @@ public class RexSimplify {
     RexSimplify simplify = this;
     for (int i = 0; i < terms.size(); i++) {
       final RexNode t = terms.get(i);
-      if (Predicate.of(t) == null) {
+      if (!allowedAsPredicateDuringOrSimplification(t)) {
         continue;
       }
       final RexNode t2 = simplify.simplify(t, unknownAs);
@@ -516,10 +516,35 @@ public class RexSimplify {
     }
     for (int i = 0; i < terms.size(); i++) {
       final RexNode t = terms.get(i);
-      if (Predicate.of(t) != null) {
+      if (allowedAsPredicateDuringOrSimplification(t)) {
         continue;
       }
       terms.set(i, simplify.simplify(t, unknownAs));
+    }
+  }
+
+  /**
+   * Decides whether the given node could be used as a predicate during the simplification
+   * of other OR operands.
+   */
+  private boolean allowedAsPredicateDuringOrSimplification(final RexNode t) {
+    Predicate predicate = Predicate.of(t);
+    if (predicate == null) {
+      return false;
+    }
+    /** Inequalities are not supported. */
+    SqlKind kind = t.getKind();
+    if (!SqlKind.COMPARISON.contains(kind)) {
+      return true;
+    }
+    switch (kind) {
+    case LESS_THAN:
+    case GREATER_THAN:
+    case GREATER_THAN_OR_EQUAL:
+    case LESS_THAN_OR_EQUAL:
+      return false;
+    default:
+      return true;
     }
   }
 
@@ -998,6 +1023,8 @@ public class RexSimplify {
       Set<SqlKind> safeOps = EnumSet.noneOf(SqlKind.class);
 
       safeOps.addAll(SqlKind.COMPARISON);
+      safeOps.add(SqlKind.PLUS_PREFIX);
+      safeOps.add(SqlKind.MINUS_PREFIX);
       safeOps.add(SqlKind.PLUS);
       safeOps.add(SqlKind.MINUS);
       safeOps.add(SqlKind.TIMES);
@@ -1007,6 +1034,8 @@ public class RexSimplify {
       safeOps.add(SqlKind.IS_NOT_TRUE);
       safeOps.add(SqlKind.IS_NULL);
       safeOps.add(SqlKind.IS_NOT_NULL);
+      safeOps.add(SqlKind.IS_DISTINCT_FROM);
+      safeOps.add(SqlKind.IS_NOT_DISTINCT_FROM);
       safeOps.add(SqlKind.IN);
       safeOps.add(SqlKind.NOT_IN);
       safeOps.add(SqlKind.OR);
@@ -1015,6 +1044,16 @@ public class RexSimplify {
       safeOps.add(SqlKind.CASE);
       safeOps.add(SqlKind.LIKE);
       safeOps.add(SqlKind.COALESCE);
+      safeOps.add(SqlKind.TRIM);
+      safeOps.add(SqlKind.LTRIM);
+      safeOps.add(SqlKind.RTRIM);
+      safeOps.add(SqlKind.BETWEEN);
+      safeOps.add(SqlKind.CEIL);
+      safeOps.add(SqlKind.FLOOR);
+      safeOps.add(SqlKind.REVERSE);
+      safeOps.add(SqlKind.TIMESTAMP_ADD);
+      safeOps.add(SqlKind.TIMESTAMP_DIFF);
+      safeOps.add(SqlKind.LIKE);
       this.safeOps = Sets.immutableEnumSet(safeOps);
     }
 
