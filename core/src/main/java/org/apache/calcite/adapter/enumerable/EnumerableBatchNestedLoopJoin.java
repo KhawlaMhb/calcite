@@ -49,7 +49,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/** Implementation of {@link org.apache.calcite.rel.core.Join} in
+/** Implementation of batch nested loop join in
  * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
 public class EnumerableBatchNestedLoopJoin extends Join implements EnumerableRel {
 
@@ -219,7 +219,7 @@ public class EnumerableBatchNestedLoopJoin extends Join implements EnumerableRel
     return implementor.result(physType, builder.toBlock());
   }
 
-  // Predicate "matches" that is gonna be used in correlateBatchJoin to compare two tuples
+  // Predicate "matches" that is going be used in correlateBatchJoin to compare two tuples
   Expression predicate(EnumerableRelImplementor implementor,
       BlockBuilder builder, PhysType leftPhysType, PhysType rightPhysType) {
     final ParameterExpression left_ =
