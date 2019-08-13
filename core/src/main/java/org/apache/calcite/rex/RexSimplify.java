@@ -2193,6 +2193,55 @@ public class RexSimplify {
       return null;
     }
   }
+  /** Represents a simple Comparison.
+   *
+   * <p>Left hand side is a {@link RexNode}, right hand side is a literal.
+   */
+  private static class ComparisonIn implements Predicate {
+    final RexNode ref;
+    final SqlKind kind;
+    final RexCorrelVariable corr;
+
+    private ComparisonIn(RexNode ref, SqlKind kind, RexCorrelVariable corr) {
+      this.ref = Objects.requireNonNull(ref);
+      this.kind = Objects.requireNonNull(kind);
+      this.corr = Objects.requireNonNull(corr);
+    }
+
+    /** Creates a comparison, between a {@link RexInputRef} or {@link RexFieldAccess}
+     * and a literal. */
+    static ComparisonIn of(RexNode e) {
+      return of(e, node -> RexUtil.isReferenceOrAccess(node, true));
+    }
+
+    /** Creates a comparison, or returns null. */
+    static ComparisonIn of(RexNode e, java.util.function.Predicate<RexNode> nodePredicate) {
+      switch (e.getKind()) {
+      case EQUALS:
+      case NOT_EQUALS:
+      case LESS_THAN:
+      case GREATER_THAN:
+      case LESS_THAN_OR_EQUAL:
+      case GREATER_THAN_OR_EQUAL:
+        final RexCall call = (RexCall) e;
+        final RexNode left = call.getOperands().get(0);
+        final RexNode right = call.getOperands().get(1);
+        switch (right.getKind()) {
+        case LITERAL:
+          if (nodePredicate.test(left)) {
+            return new ComparisonIn(left, e.getKind(), (RexCorrelVariable) right);
+          }
+        }
+        switch (left.getKind()) {
+        case LITERAL:
+          if (nodePredicate.test(right)) {
+            return new ComparisonIn(right, e.getKind().reverse(), (RexCorrelVariable) left);
+          }
+        }
+      }
+      return null;
+    }
+  }
 
   /** Represents an IS Predicate. */
   private static class IsPredicate implements Predicate {
